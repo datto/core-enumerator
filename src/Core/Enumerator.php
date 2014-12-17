@@ -32,6 +32,14 @@ use DirectoryIterator;
 class Enumerator
 {
 	/**
+	 * The base directory for the project.
+	 * @var string
+	 * @static
+	 */
+
+	private static $root = null;
+
+	/**
 	 * Return a list of classes under a given namespace. It is an error to enumerate the root namespace.
 	 * @param string Namespace name. Trailing backslash may be omitted.
 	 * @param Limiting rules. An array of constraints on the returned results. Currently
@@ -44,6 +52,8 @@ class Enumerator
 	
 	public static function getClasses($namespace, $conditions = [])
 	{
+		self::_setupRoot();
+
 		$namespace = explode('\\', trim($namespace, '\\'));
 		
 		$composerNamespaces = self::getComposerNamespaces();
@@ -102,7 +112,7 @@ class Enumerator
 		global $Composer;
 		
 		if ( $result = $Composer->findFile($className) ) {
-			$result = substr($result, strlen(ROOT));
+			$result = substr($result, strlen(self::$root));
 			
 			if ( preg_match('#^vendor/([a-z0-9_-]+/[a-z0-9_-]+)/#', $result, $match) ) {
 				return $match[1];
@@ -124,7 +134,7 @@ class Enumerator
 		static $result = null;
 		
 		if ( !is_array($result) ) {
-			$result = require ROOT . 'vendor/composer/autoload_namespaces.php';
+			$result = require self::$root . 'vendor/composer/autoload_namespaces.php';
 			
 			foreach ( $result as $ns => &$paths ) {
 				$subpath = trim(str_replace('\\', DIRECTORY_SEPARATOR, $ns), DIRECTORY_SEPARATOR);
@@ -138,7 +148,7 @@ class Enumerator
 			}
 			unset($paths);
 			
-			$psr4 = require ROOT . 'vendor/composer/autoload_psr4.php';
+			$psr4 = require self::$root . 'vendor/composer/autoload_psr4.php';
 			
 			foreach ( $psr4 as $ns => $paths )
 			{
@@ -265,6 +275,47 @@ class Enumerator
 		}
 		
 		return $result;
+	}
+	/**
+	 * Determine the project root directory.
+	 */
+
+	private static function _setupRoot()
+	{
+		if ( defined('ROOT') ) {
+			self::$root = rtrim(ROOT, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+		}
+		else if ( !empty($GLOBALS['baseDir']) ) {
+			self::$root = rtrim($GLOBALS['baseDir'], DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+		}
+		else if ( strpos(__FILE__, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) !== false ) {
+			// fall back to guessing the project root from the path...
+			// we're in /vendor/datto/core-enumerator/src/Core
+
+			$path = __FILE__;
+			// up 5 levels
+			for ( $i = 0; $i < 5; $i++ ) {
+				$path = dirname($path);
+			}
+
+			self::$root = $path . DIRECTORY_SEPARATOR;
+		}
+		else if ( class_exists("Composer\\Autoload\\ClassLoader") ) {
+			// go up until we find vendor/autoload.php - last resort
+			$path = dirname(__FILE__);
+			while ( $path && !file_exists($path . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php') ) {
+				$path = dirname($path);
+			}
+
+			if ( !empty($path) ) {
+				var_dump($path);
+				self::$root = $path . DIRECTORY_SEPARATOR;
+			}
+		}
+
+		if ( empty(self::$root) ) {
+			throw new \Exception("Unable to determine project base directory");
+		}
 	}
 }
 
