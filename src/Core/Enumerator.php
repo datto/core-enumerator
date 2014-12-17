@@ -282,6 +282,11 @@ class Enumerator
 
 	private static function _setupRoot()
 	{
+		if ( !empty(self::$root) ) {
+			// avoid duplicating efforts... only set root if it's not already set 
+			return;
+		}
+		
 		if ( defined('ROOT') ) {
 			self::$root = rtrim(ROOT, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 		}
