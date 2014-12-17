@@ -26,7 +26,7 @@ use DirectoryIterator;
 
 /**
  * Enumerator for namespaces. This is designed to make sub-component auto-discovery easier.
- * @author Dan Fuhry <dan@fuhry.com>
+ * @author Dan Fuhry <dfuhry@dattobackup.com>
  */
 
 class Enumerator
@@ -34,8 +34,10 @@ class Enumerator
 	/**
 	 * Return a list of classes under a given namespace. It is an error to enumerate the root namespace.
 	 * @param string Namespace name. Trailing backslash may be omitted.
-	 * @param Limiting rules. An array of conditions on the returned results. Currently
-	 *  the only supported condition is "implements". Use it: [ ['implements' => 'Some\Interface'] ]
+	 * @param Limiting rules. An array of constraints on the returned results. Currently
+	 *  the only supported constraints are "implements" (string - class name) and "abstract"
+	 *  (boolean).
+	 *  Use it: [ ['implements' => 'Some\Interface', 'abstract' => false] ]
 	 * @return array
 	 * @static
 	 */
