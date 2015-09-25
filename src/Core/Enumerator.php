@@ -32,12 +32,26 @@ use DirectoryIterator;
 class Enumerator
 {
 	/**
-	 * The base directory for the project.
-	 * @var string
+	 * The directories to search for Composer instances. By default, this will
+	 * be just a single project root, but the addRoot() static method can be
+	 * used to advise the library of multiple project roots.
+	 * 
+	 * @var array
 	 * @static
 	 */
 
-	private static $root = null;
+	private static $roots = [];
+	
+	/**
+	 * Composer instances. You need to add at least one for getComposerModule to
+	 * work, but you can push multiple if you combine multiple Composer projects
+	 * into one application.
+	 *
+	 * @var array
+	 * @static
+	 */
+	
+	private static $Composer = [];
 
 	/**
 	 * Return a list of classes under a given namespace. It is an error to enumerate the root namespace.
@@ -109,13 +123,13 @@ class Enumerator
 	
 	public static function getComposerModule($className)
 	{
-		global $Composer;
-		
-		if ( $result = $Composer->findFile($className) ) {
-			$result = substr($result, strlen(self::$root));
-			
-			if ( preg_match('#^vendor/([a-z0-9_-]+/[a-z0-9_-]+)/#', $result, $match) ) {
-				return $match[1];
+		foreach ( self::$Composer as $Composer ) {
+			if ( $result = $Composer->findFile($className) ) {
+				$ds = DIRECTORY_SEPARATOR;
+				$regexp = "#{$ds}vendor{$ds}([a-z0-9_-]+{$ds}[a-z0-9_-]+){$ds}#";
+				if ( preg_match($regexp, $result, $match) ) {
+					return $match[1];
+				}
 			}
 		}
 		
@@ -134,7 +148,11 @@ class Enumerator
 		static $result = null;
 		
 		if ( !is_array($result) ) {
-			$result = require self::$root . 'vendor/composer/autoload_namespaces.php';
+			$result = [];
+			foreach ( self::$roots as $root ) {
+				$namespaces = require $root . 'vendor/composer/autoload_namespaces.php';
+				$result = array_merge($result, $namespaces);
+			}
 			
 			foreach ( $result as $ns => &$paths ) {
 				$subpath = trim(str_replace('\\', DIRECTORY_SEPARATOR, $ns), DIRECTORY_SEPARATOR);
@@ -148,7 +166,12 @@ class Enumerator
 			}
 			unset($paths);
 			
-			$psr4 = require self::$root . 'vendor/composer/autoload_psr4.php';
+			$psr4 = [];
+			
+			foreach ( self::$roots as $root ) {
+				$namespaces = require $root . 'vendor/composer/autoload_psr4.php';
+				$psr4 = array_merge($psr4, $namespaces);
+			}
 			
 			foreach ( $psr4 as $ns => $paths )
 			{
@@ -276,22 +299,85 @@ class Enumerator
 		
 		return $result;
 	}
+	
+	/**
+	 * Add a new root directory to search under.
+	 *
+	 * If the supplied argument is not a string or not a path to an extant
+	 * directory, an InvalidArgumentException will be thrown.
+	 *
+	 * @param string Directory
+	 * @throws InvalidArgumentException
+	 */
+	
+	public static function addRootDirectory($dir)
+	{
+		if ( !is_string($dir) ) {
+			throw new \InvalidArgumentException(
+				"Invalid argument: argument \"\$dir\" must be a string"
+			);
+		}
+		
+		if ( !is_dir($dir) ) {
+			throw new \InvalidArgumentException(
+				"Invalid argument: argument \"\$dir\" must be a path to a " .
+				"directory that exists in the filesystem."
+			);
+		}
+		
+		$dir = rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+		
+		self::$roots[] = $dir;
+	}
+	
+	/**
+	 * Add a Composer instance.
+	 *
+	 * If a non-object is supplied or the object does not appear to be a
+	 * Composer autoloader, an InvalidArgumentException will be thrown.
+	 *
+	 * @param object Composer
+	 */
+	
+	public static function addComposer($Composer)
+	{
+		if ( !is_object($Composer) ) {
+			throw new \InvalidArgumentException(
+				"Supplied argument \"\$Composer\" must be an object."
+			);
+		}
+		
+		$className = trim(get_class($Composer), '\\');
+		if ( !preg_match('/^ComposerAutoloaderInit[a-f0-9]{32}$/', $className) ) {
+			throw new \InvalidArgumentException(
+				"Supplied argument \"\$Composer\" must be a " .
+				"ComposerAutoloaderInit* instance. This is an object returned " .
+				"from vendor/autoload.php."
+			);
+		}
+		
+		self::$Composer[] = $Composer;
+	}
+	
 	/**
 	 * Determine the project root directory.
+	 * 
+	 * @access private
+	 * @static
 	 */
 
 	private static function _setupRoot()
 	{
-		if ( !empty(self::$root) ) {
+		if ( !empty(self::$roots) ) {
 			// avoid duplicating efforts... only set root if it's not already set 
 			return;
 		}
 		
 		if ( defined('ROOT') ) {
-			self::$root = rtrim(ROOT, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+			self::$roots[] = rtrim(ROOT, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 		}
 		else if ( !empty($GLOBALS['baseDir']) ) {
-			self::$root = rtrim($GLOBALS['baseDir'], DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+			self::$roots[] = rtrim($GLOBALS['baseDir'], DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 		}
 		else if ( strpos(__FILE__, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) !== false ) {
 			// fall back to guessing the project root from the path...
@@ -303,7 +389,7 @@ class Enumerator
 				$path = dirname($path);
 			}
 
-			self::$root = $path . DIRECTORY_SEPARATOR;
+			self::$roots[] = $path . DIRECTORY_SEPARATOR;
 		}
 		else if ( class_exists("Composer\\Autoload\\ClassLoader") ) {
 			// go up until we find vendor/autoload.php - last resort
@@ -314,11 +400,11 @@ class Enumerator
 
 			if ( !empty($path) ) {
 				var_dump($path);
-				self::$root = $path . DIRECTORY_SEPARATOR;
+				self::$roots[] = $path . DIRECTORY_SEPARATOR;
 			}
 		}
 
-		if ( empty(self::$root) ) {
+		if ( empty(self::$roots) ) {
 			throw new \Exception("Unable to determine project base directory");
 		}
 	}
