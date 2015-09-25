@@ -138,6 +138,11 @@ class Enumerator
 	
 	/**
 	 * Get Composer's namespace list.
+	 *
+	 * Note - serious limitation - this function caches its result per
+	 * execution. This means you must register all your roots and composer
+	 * instances before Enumerator is used for the first time.
+	 * 
 	 * @return array
 	 * @access private
 	 * @static
@@ -151,7 +156,7 @@ class Enumerator
 			$result = [];
 			foreach ( self::$roots as $root ) {
 				$namespaces = require $root . 'vendor/composer/autoload_namespaces.php';
-				$result = array_merge($result, $namespaces);
+				$result = array_merge_recursive($result, $namespaces);
 			}
 			
 			foreach ( $result as $ns => &$paths ) {
@@ -170,7 +175,7 @@ class Enumerator
 			
 			foreach ( self::$roots as $root ) {
 				$namespaces = require $root . 'vendor/composer/autoload_psr4.php';
-				$psr4 = array_merge($psr4, $namespaces);
+				$psr4 = array_merge_recursive($psr4, $namespaces);
 			}
 			
 			foreach ( $psr4 as $ns => $paths )
@@ -325,7 +330,7 @@ class Enumerator
 			);
 		}
 		
-		$dir = rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+		$dir = realpath(rtrim($dir, DIRECTORY_SEPARATOR)) . DIRECTORY_SEPARATOR;
 		
 		self::$roots[] = $dir;
 	}
@@ -347,13 +352,15 @@ class Enumerator
 			);
 		}
 		
-		$className = trim(get_class($Composer), '\\');
-		if ( !preg_match('/^ComposerAutoloaderInit[a-f0-9]{32}$/', $className) ) {
-			throw new \InvalidArgumentException(
-				"Supplied argument \"\$Composer\" must be a " .
-				"ComposerAutoloaderInit* instance. This is an object returned " .
-				"from vendor/autoload.php."
-			);
+		if ( !($Composer instanceof \Composer\Autoload\ClassLoader) ) {
+			$className = trim(get_class($Composer), '\\');
+			if ( !preg_match('/^ComposerAutoloaderInit[a-f0-9]{32}$/', $className) ) {
+				throw new \InvalidArgumentException(
+					"Supplied argument \"\$Composer\" must be a " .
+					"ComposerAutoloaderInit* instance. This is an object returned " .
+					"from vendor/autoload.php. Class name is $className"
+				);
+			}
 		}
 		
 		self::$Composer[] = $Composer;
