@@ -125,10 +125,15 @@ class Enumerator
 	{
 		foreach ( self::$Composer as $Composer ) {
 			if ( $result = $Composer->findFile($className) ) {
-				$ds = DIRECTORY_SEPARATOR;
-				$regexp = "#{$ds}vendor{$ds}([a-z0-9_-]+{$ds}[a-z0-9_-]+){$ds}#";
-				if ( preg_match($regexp, $result, $match) ) {
-					return $match[1];
+				$dir = dirname($result);
+				while ( strlen($dir) ) {
+					if ( file_exists($jsonFile = "$dir/composer.json") ) {
+						$json = json_decode(file_get_contents($jsonFile), true);
+						if ( isset($json['name']) ) {
+							return $json['name'];
+						}
+					}
+					$dir = dirname($dir);
 				}
 			}
 		}
