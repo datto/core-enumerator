@@ -62,8 +62,8 @@ class Enumerator
 		// for each Composer namespace, assess whether it may contain the namespace $namespace.
 		foreach ( $composerNamespaces as $ns => $paths )
 		{
-			$nsTrimmed = explode('\\', trim($ns, '\\'));
-			for ( $i = min(count($nsTrimmed), count($namespace)); $i > 0; $i-- ) {
+			$nsTrimmed = strlen($ns) ? explode('\\', trim($ns, '\\')) : [];
+			for ( $i = min(count($nsTrimmed), count($namespace)); $i >= min(1, count($nsTrimmed)); $i-- ) {
 				if ( array_slice($nsTrimmed, 0, $i) === array_slice($namespace, 0, $i) ) {
 					$searchPaths[] = [
 							'prefix' => $nsTrimmed
@@ -90,7 +90,7 @@ class Enumerator
 						. implode(DIRECTORY_SEPARATOR, array_slice($namespace, count($pathspec['prefix'])));
 						
 				$prefix = count($pathspec['prefix']) > count($namespace) ? implode('\\', $pathspec['prefix']) : implode('\\', $namespace);
-						
+				
 				// if that path exists, go ahead and search it for class files and append them to the result.
 				if ( is_dir($path) ) {
 					$result = array_merge($result, self::searchPath($prefix, rtrim($path, DIRECTORY_SEPARATOR), $conditions));
@@ -293,18 +293,6 @@ class Enumerator
 		else if ( !empty($GLOBALS['baseDir']) ) {
 			self::$root = rtrim($GLOBALS['baseDir'], DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 		}
-		else if ( strpos(__FILE__, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) !== false ) {
-			// fall back to guessing the project root from the path...
-			// we're in /vendor/datto/core-enumerator/src/Core
-
-			$path = __FILE__;
-			// up 5 levels
-			for ( $i = 0; $i < 5; $i++ ) {
-				$path = dirname($path);
-			}
-
-			self::$root = $path . DIRECTORY_SEPARATOR;
-		}
 		else if ( class_exists("Composer\\Autoload\\ClassLoader") ) {
 			// go up until we find vendor/autoload.php - last resort
 			$path = dirname(__FILE__);
@@ -313,9 +301,20 @@ class Enumerator
 			}
 
 			if ( !empty($path) ) {
-				var_dump($path);
 				self::$root = $path . DIRECTORY_SEPARATOR;
 			}
+		}
+		else if ( strpos(__FILE__, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) !== false ) {
+			// fall back to guessing the project root from the path...
+			// we're in /vendor/datto/core-enumerator/src/Core
+
+			$path = __FILE__;
+			// up 5 levels
+			for ( $i = 0; $i < 6; $i++ ) {
+				$path = dirname($path);
+			}
+
+			self::$root = $path . DIRECTORY_SEPARATOR;
 		}
 
 		if ( empty(self::$root) ) {
