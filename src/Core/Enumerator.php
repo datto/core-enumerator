@@ -299,9 +299,11 @@ class Enumerator
 
 			$path = __FILE__;
 			// up 5 levels
-			for ( $i = 0; $i < 5; $i++ ) {
+			while (!file_exists("$path/autoload.php")) {
 				$path = dirname($path);
 			}
+			
+			$path = dirname($path);
 
 			self::$root = $path . DIRECTORY_SEPARATOR;
 		}
