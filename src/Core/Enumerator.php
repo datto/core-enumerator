@@ -251,6 +251,15 @@ class Enumerator
 									break 2; // lazy evaluation
 								}
 								break;
+							case 'extends':
+								if ( empty($rfl) ) {
+									$rfl = new \ReflectionClass($fqcn);
+								}
+								if ( $rfl->getParentClass()->getName() !== $value ) {
+									$condResult = false;
+									break 2; // lazy evaluation
+								}
+								break;
 							case 'abstract':
 								if ( empty($rfl) ) {
 									$rfl = new \ReflectionClass($fqcn);
