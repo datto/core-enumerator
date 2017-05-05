@@ -210,7 +210,7 @@ class Enumerator
 						}
 						// This fairly complicated regexp covers "implements" with multiple inheritance,
 						// "extends" and a fair amount of syntactical deviation.
-						else if ( preg_match('/^\s*class ([A-Za-z_]+)(?:\s+(?:extends|implements) [A-Za-z_\\\\]+(?:\s*,\s*[A-Za-z_]+)*)*\s*[\{,]?$/', trim($line), $match)
+						else if ( preg_match('/^\s*class ([A-Za-z0-9_]+)(?:\s+(?:extends|implements) [A-Za-z0-9_\\\\]+(?:\s*,\s*[A-Za-z0-9_]+)*)*\s*[\{,]?$/', trim($line), $match)
 								&& ($match[1] === "\\$prefix\\$className" || $match[1] === $className) ) {
 							$foundClass = true;
 						}
