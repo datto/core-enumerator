@@ -255,6 +255,10 @@ class Enumerator
 								if ( empty($rfl) ) {
 									$rfl = new \ReflectionClass($fqcn);
 								}
+								if ( !is_object($rfl->getParentClass()) ) {
+									$condResult = false;
+									break 2; // lazy evaluation
+								}
 								if ( $rfl->getParentClass()->getName() !== $value ) {
 									$condResult = false;
 									break 2; // lazy evaluation
