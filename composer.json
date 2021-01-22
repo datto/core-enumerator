@@ -1,7 +1,7 @@
 {
     "name": "datto/core-enumerator",
     "description": "PHP class for enumeration of all classes inside a given namespace.",
-    "license": "LGPL v2.1",
+    "license": "LGPL-2.1-only",
     "authors": [
         {
             "name": "Christopher Hoult",
