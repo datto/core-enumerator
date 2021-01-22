@@ -4,8 +4,8 @@
     "license": "LGPL v2.1",
     "authors": [
         {
-            "name": "Dan Fuhry",
-            "email": "dfuhry@dattobackup.com"
+            "name": "Christopher Hoult",
+            "email": "choult@datto.com"
         }
     ],
     "minimum-stability": "stable",
